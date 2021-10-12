@@ -1,0 +1,76 @@
+#!bin/bash
+#==================================
+help() {
+  cat << EOF
+usage: $0 [OPTIONS]
+  --help                    Show this message 
+  -ct | --clone_template    clone a repository template:
+                                - REPO_TEMPLATE_NAME
+                                - REPO_TEMPLATE_OWNER
+                                - NEW_REPOSITORY_NAME
+                                - NEW_REPOSITORY_DESCRIPTION
+                                - NEW_REPOSITORY_IS_PRIVATE
+EOF
+}
+#===================================
+check_ct_env_variables(){  
+  [[ -z $REPO_TEMPLATE_NAME ]] && {  echo "variable REPO_TEMPLATE not found."; exit 126; }
+  [[ -z $REPO_TEMPLATE_OWNER ]] && {  echo "variable REPO_TEMPLATE_OWNER not found."; exit 126; }
+  [[ -z $USER_NAME ]] && {  echo "variable USER_NAME not found."; exit 126; }
+  [[ -z $USER_TOKEN ]] && {  echo "variable USER_TOKEN not found."; exit 126; }
+  [[ -z $NEW_REPOSITORY_NAME ]] && {  echo "variable NEW_REPOSITORY not found."; exit 126; }
+}
+#===================================
+missing_packages(){
+  packages=("$@")
+  missing=('')
+  for package in "${packages[@]}";do
+      [[ -z $(command -v $package) ]] && { missing+=package; } || { missing="${missing[@]}"; }
+  done
+  echo "${missing[@]}"
+}
+#===================================
+get_package_manager_command(){
+  package_manager_command=''
+  [[ -e /etc/os-release ]] && { lsb_dist="$(cat /etc/os-release | grep "^ID=" | cut -d '=' -f2)"; lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"; } || { lsb_dist=""; }
+  case "$lsb_dist" in
+      arch | manjaro )
+          package_manager_command='pacman -Sy --noconfirm'
+      ;;
+      centeos | rhel )
+          package_manager_command='yum install -y'
+      ;;
+      debian | ubuntu | pop | linuxmint)
+          package_manager_command='apt install -y'
+      ;;
+      fedora )
+          package_manager_command='dnf install -y'
+      ;;
+      sles )
+          package_manager_command='zypper install -y'
+      ;;
+      * )
+          echo "It's distribution is not supported."
+          exit 126
+      ;;
+  esac
+  echo "${package_manager_command}"
+}
+#===================================
+install_packages(){
+  pckgs=("$@")
+  install_command="$(get_package_manager_command)"
+  sudo $install_command "${pckgs[@]}" || return 1
+}
+#===================================
+check_packages(){
+  packages=('curl' 'jq')
+  packages_to_install="$(missing_packages ${packages[@]})"
+  [[ -n $packages_to_install ]] \
+      && { install_packages "${packages_to_install[@]}"; }
+}
+#===================================
+check_ct_prerequisites(){
+  check_ct_env_variables
+  check_packages
+}

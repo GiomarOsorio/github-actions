@@ -1,0 +1,18 @@
+#!bin/bash
+#==================================
+REPO_TEMPLATE_NAME=$(grep REPO_TEMPLATE_NAME .env | cut -d '=' -f2)
+REPO_TEMPLATE_OWNER=$(grep REPO_TEMPLATE_OWNER .env | cut -d '=' -f2)
+USER_NAME=$(grep USER_NAME .env | cut -d '=' -f2)
+USER_TOKEN=$(grep USER_TOKEN .env)
+USER_TOKEN=$(echo ${USER_TOKEN#*=})
+NEW_REPOSITORY_NAME=$(grep NEW_REPOSITORY_NAME .env | cut -d '=' -f2)
+NEW_REPOSITORY_DESCRIPTION=$(grep NEW_REPOSITORY_DESCRIPTION .env)
+NEW_REPOSITORY_DESCRIPTION=$(echo ${NEW_REPOSITORY_DESCRIPTION#*=})
+NEW_REPOSITORY_IS_PRIVATE=$(grep NEW_REPOSITORY_IS_PRIVATE .env | cut -d '=' -f2)
+#==================================
+[[ -n $( docker images | grep clone-repo ) ]] \
+    && { docker rmi clone-repo:1.0; docker build -t clone-repo:1.0 .; } \
+    || { docker build -t clone-repo:1.0 .; }
+#==================================
+docker run -it -e "REPO_TEMPLATE_NAME=${REPO_TEMPLATE_NAME}" -e "REPO_TEMPLATE_OWNER=${REPO_TEMPLATE_OWNER}" -e "USER_NAME=${USER_NAME}" -e "USER_TOKEN=${USER_TOKEN}" -e "NEW_REPOSITORY_NAME=${NEW_REPOSITORY_NAME}" -e "NEW_REPOSITORY_DESCRIPTION=${NEW_REPOSITORY_DESCRIPTION}" -e "NEW_REPOSITORY_IS_PRIVATE=${NEW_REPOSITORY_IS_PRIVATE}" --rm clone-repo:1.0 -ct
+#==================================

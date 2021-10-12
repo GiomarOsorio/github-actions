@@ -1,0 +1,76 @@
+#!bin/bash
+#===================================
+check_is_template(){
+  [[ -n $REPO_TEMPLATE_TOKEN ]] \
+      && { check_response=$(curl -s -H "Accept: application/vnd.github.baptiste-preview+json" -H "Authorization: token $REPO_TEMPLATE_TOKEN" https://api.github.com/repos/$REPO_TEMPLATE_OWNER/$REPO_TEMPLATE_NAME); } \
+      || { check_response=$(curl -s -H "Accept: application/vnd.github.baptiste-preview+json" https://api.github.com/repos/$REPO_TEMPLATE_OWNER/$REPO_TEMPLATE_NAME); }
+  message=$(echo -e "$check_response" | jq '. | .message')
+  case ${message} in
+      "\"Requires authentication\"" | "\"Bad credentials\"" )
+          echo ${message}
+          exit 1
+          ;;
+      "\"Not Found\"" )
+          echo "Repository (${REPO_TEMPLATE_NAME}) not found."
+          exit 1
+          ;;
+      "null" )
+          is_template=$(echo -e "$check_response" | jq '. | .is_template')
+          if [[ "${is_template}" != "true" ]]; then
+              echo "The repository is not configured as a template, invalid repository."
+              exit 1
+          fi
+          ;;
+  esac
+}
+#===================================
+generatepostdata(){
+{
+cat <<EOF
+{"owner":"$USER_NAME", "name":"$NEW_REPOSITORY_NAME", "description":"$NEW_REPOSITORY_DESCRIPTION", "private":$NEW_REPOSITORY_IS_PRIVATE}
+EOF
+}
+}
+#===================================
+clone_repo_template(){
+  [[ -n $NEW_REPOSITORY_DESCRIPTION ]] \
+      && { NEW_REPOSITORY_DESCRIPTION="${NEW_REPOSITORY_DESCRIPTION}"; } \
+      || { NEW_REPOSITORY_DESCRIPTION=''; }
+  [[ -n $NEW_REPOSITORY_IS_PRIVATE ]] \
+      && { NEW_REPOSITORY_IS_PRIVATE="${NEW_REPOSITORY_IS_PRIVATE}"; } \
+      || { NEW_REPOSITORY_IS_PRIVATE=false; }
+  [[ -n $REPO_TEMPLATE_TOKEN ]] \
+     && { clone_response=$(curl -s -X POST -H "Accept: application/vnd.github.baptiste-preview+json" -H "Content-Type: application/json" -H "Authentication: token $REPO_TEMPLATE_TOKEN" --user "$USER_NAME:$USER_TOKEN" https://api.github.com/repos/$REPO_TEMPLATE_OWNER/$REPO_TEMPLATE_NAME/generate -d "$(generatepostdata)"); } \
+      || { clone_response=$(curl -s -X POST -H "Accept: application/vnd.github.baptiste-preview+json" -H "Content-Type: application/json" --user "$USER_NAME:$USER_TOKEN" https://api.github.com/repos/$REPO_TEMPLATE_OWNER/$REPO_TEMPLATE_NAME/generate -d "$(generatepostdata)"); }
+  message=$(echo -e "$clone_response" | jq '. | .message')
+  case ${message} in
+      "\"Unprocessable Entity\"")
+          echo "$(echo -e "$clone_response" | jq '. | .errors[]')"
+          exit 1
+          ;;
+      "\"Bad credentials\"" )
+          echo "You have supplied an incorrect user access token."
+          exit 1
+          ;;
+      "\"Not Found\"")
+          echo "The repository was not found. (maybe USER_TOKEN is missing?)"
+          exit 1
+          ;;
+      "\"Requires authentication\"")
+          echo "user ${USER} requires authentication. (maybe USER_TOKEN is missing?)"
+          exit 1
+          ;;
+      "null")
+          html_url=$(echo -e "$clone_response" | jq '. | .html_url')
+          [[ -n html_url ]] \
+              && { echo "The repository has been created successfully, repository address: ${html_url}"; } \
+              || { echo "We cannot verify that the repository was cloned correctly, check manually your repositories"; exit 1; }
+          ;;
+  esac
+}
+#===================================
+clone_template(){
+  check_ct_prerequisites
+  check_is_template
+  clone_repo_template
+}

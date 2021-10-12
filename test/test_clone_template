@@ -1,0 +1,23 @@
+#!bin/bash
+#==================================
+export REPO_TEMPLATE_NAME=$(grep REPO_TEMPLATE_NAME .env | cut -d '=' -f2)
+export REPO_TEMPLATE_OWNER=$(grep REPO_TEMPLATE_OWNER .env | cut -d '=' -f2)
+export USER_NAME=$(grep USER_NAME .env | cut -d '=' -f2)
+USER_TOKEN=$(grep USER_TOKEN .env)
+export USER_TOKEN=$(echo ${USER_TOKEN#*=})
+export NEW_REPOSITORY_NAME=$(grep NEW_REPOSITORY_NAME .env | cut -d '=' -f2)
+NEW_REPOSITORY_DESCRIPTION=$(grep NEW_REPOSITORY_DESCRIPTION .env)
+export NEW_REPOSITORY_DESCRIPTION=$(echo ${NEW_REPOSITORY_DESCRIPTION#*=})
+export NEW_REPOSITORY_IS_PRIVATE=$(grep NEW_REPOSITORY_IS_PRIVATE .env | cut -d '=' -f2)
+__dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+__dir_entrypoint="${__dir%/*}/entrypoint"
+#==================================
+/bin/bash $__dir_entrypoint --clone-template   
+#==================================
+unset REPO_TEMPLATE_NAME
+unset REPO_TEMPLATE_OWNER
+unset USER_NAME
+unset USER_TOKEN
+unset NEW_REPOSITORY_NAME
+unset NEW_REPOSITORY_DESCRIPTION
+unset NEW_REPOSITORY_IS_PRIVATE
